@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import pytest
 
 # Importing the server triggers MCPServer registration of every tool/resource/prompt.
@@ -19,7 +20,7 @@ def _server():
 
 def test_tools_register():
     mcp = _server()
-    tool_names = [t.name for t in mcp._tool_manager.list_tools()]
+    tool_names = [t.name for t in asyncio.run(mcp.list_tools())]
     # 35 tools after the v0.6 alignment (init + scaffold tools).
     assert len(tool_names) == 35, f"unexpected tool count: {tool_names}"
 
@@ -60,9 +61,8 @@ def test_tools_register():
 
 def test_resources_register():
     mcp = _server()
-    rm = mcp._resource_manager
-    resource_uris = {str(r.uri) for r in rm.list_resources()}
-    template_uris = {t.uri_template for t in rm.list_templates()}
+    resource_uris = {str(r.uri) for r in asyncio.run(mcp.list_resources())}
+    template_uris = {t.uri_template for t in asyncio.run(mcp.list_resource_templates())}
 
     static_expected = {
         "pixeltable://tables", "pixeltable://directories", "pixeltable://ls",
@@ -88,7 +88,7 @@ def test_resources_register():
 
 def test_prompts_register():
     mcp = _server()
-    prompt_names = [p.name for p in mcp._prompt_manager.list_prompts()]
+    prompt_names = [p.name for p in asyncio.run(mcp.list_prompts())]
 
     expected = {
         # existing
@@ -111,9 +111,9 @@ def test_list_tools_resource_matches_server():
     from mcp_server_pixeltable_stio.core.helpers import pixeltable_list_tools
 
     mcp = _server()
-    live = {t.name for t in mcp._tool_manager.list_tools()}
+    live = {t.name for t in asyncio.run(mcp.list_tools())}
 
-    result = pixeltable_list_tools()
+    result = asyncio.run(pixeltable_list_tools())
     assert result["success"]
     reported = {tool["name"] for cat in result["categories"].values() for tool in cat}
     assert reported == live, f"resource drift: {reported.symmetric_difference(live)}"
