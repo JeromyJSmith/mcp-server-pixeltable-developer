@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-# Importing the server triggers FastMCP registration of every tool/resource/prompt.
+# Importing the server triggers MCPServer registration of every tool/resource/prompt.
 # The Pydantic UserWarning about the `schema` field shadowing is expected and benign.
 pytestmark = pytest.mark.filterwarnings(
     "ignore:Field name \"schema\".*shadows.*:UserWarning"
@@ -107,7 +107,7 @@ def test_prompts_register():
 
 
 def test_list_tools_resource_matches_server():
-    """pixeltable://tools must reflect actual FastMCP registration."""
+    """pixeltable://tools must reflect actual MCPServer registration."""
     from mcp_server_pixeltable_stio.core.helpers import pixeltable_list_tools
 
     mcp = _server()

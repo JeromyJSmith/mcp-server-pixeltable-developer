@@ -66,12 +66,12 @@ def main():
         logger.error(f"Error starting server: {e}", exc_info=True)
 
         # Fall back to a minimal MCP server that stays alive
-        from mcp.server.fastmcp import FastMCP
+        from mcp.server import MCPServer
         from mcp_server_pixeltable_stio.utils import setup_resilient_process
 
         setup_resilient_process()
         logger.info("Starting minimal MCP server after error")
-        minimal_mcp = FastMCP(name="pixeltable-minimal")
+        minimal_mcp = MCPServer(name="pixeltable-minimal")
         minimal_mcp.run()
 
 

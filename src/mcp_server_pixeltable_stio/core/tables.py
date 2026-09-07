@@ -1,3 +1,4 @@
+import json
 """
 Table management for the Pixeltable MCP server.
 
@@ -530,6 +531,8 @@ def pixeltable_query_table(table_path: str, limit: Optional[int] = None) -> Dict
         def _safe(v: Any) -> Any:
             if isinstance(v, (str, int, float, bool, type(None))):
                 return v
+            if isinstance(v, (dict, list, tuple)):
+                return json.dumps(v, default=str)
             return str(v)
 
         return {
@@ -612,6 +615,8 @@ def pixeltable_query(
         def _safe(v: Any) -> Any:
             if isinstance(v, (str, int, float, bool, type(None))):
                 return v
+            if isinstance(v, (dict, list, tuple)):
+                return json.dumps(v, default=str)
             return str(v)
 
         return {

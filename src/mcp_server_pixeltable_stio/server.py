@@ -19,7 +19,9 @@ try:
 except ImportError:
     pass  # uvloop not installed — fall back to default asyncio loop
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
+
+from mcp_server_pixeltable_stio import __version__
 
 # ---------------------------------------------------------------------------
 # Import core functionality from specialised modules
@@ -146,8 +148,9 @@ for similarity search use column.similarity(string=query). See Pixeltable docs a
 # ===========================================================================
 # Create the MCP server instance at MODULE LEVEL so `mcp dev` can find it
 # ===========================================================================
-mcp = FastMCP(
+mcp = MCPServer(
     name="pixeltable-developer",
+    version=__version__,
     instructions=PIXELTABLE_SERVER_INSTRUCTIONS,
 )
 

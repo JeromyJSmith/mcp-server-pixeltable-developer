@@ -154,7 +154,7 @@ uv run python list_tools.py
 | **Logging** | `log_bug` · `log_missing_feature` · `log_success` · `generate_bug_report` · `get_session_summary` |
 | **Display** | `display_in_browser` (canvas-extra + `PIXELTABLE_MCP_CANVAS=1`) |
 
-All tools are prefixed `pixeltable_` (except REPL/logging helpers). Full docstrings available via `introspect_function`. `pixeltable://tools` always reflects the live FastMCP registration.
+All tools are prefixed `pixeltable_` (except REPL/logging helpers). Full docstrings available via `introspect_function`. `pixeltable://tools` always reflects the live MCPServer registration.
 
 `create_view` accepts `iterator` (`frame_iterator` / `document_splitter` / `audio_splitter` / `string_splitter`) + `iterator_kwargs` so frame and chunk views don't require dropping into `execute_python`.
 
@@ -171,7 +171,7 @@ All tools are prefixed `pixeltable_` (except REPL/logging helpers). Full docstri
 | `pixeltable://config/datastore` | Datastore config |
 | `pixeltable://types` | Available data types |
 | `pixeltable://functions` | Registered Pixeltable functions |
-| `pixeltable://tools` | MCP tool list (introspects the live FastMCP server) |
+| `pixeltable://tools` | MCP tool list (introspects the live MCPServer registration) |
 | `pixeltable://help` | Workflow guidance + pitfalls |
 | `pixeltable://diagnostics` | System & dependency diagnostics |
 
@@ -210,7 +210,7 @@ execute_python("print(pxt.list_tables())")
 
 ```
 src/mcp_server_pixeltable_stio/
-  server.py            FastMCP server, tool/resource/prompt registration, uvloop, canvas gate
+  server.py            MCPServer, tool/resource/prompt registration, uvloop, canvas gate
   core/
     tables.py          Table CRUD, views (iterator support), snapshots, replicas, queries,
                        computed columns (eval context exposes all skill providers),
