@@ -5,6 +5,7 @@ Covers table CRUD, views, snapshots, replicas, queries, inserts,
 computed columns, and schema introspection.
 """
 
+import inspect
 import logging
 import sys
 import io
@@ -167,6 +168,13 @@ def pixeltable_init(config_overrides: Optional[Dict[str, Any]] = None) -> Dict[s
 # Table CRUD
 # ---------------------------------------------------------------------------
 
+def _index_kwargs(function, enabled):
+    """Pixeltable renamed this option in 0.7; retain the MCP input contract."""
+    name = ('has_default_idxs' if 'has_default_idxs' in inspect.signature(function).parameters
+            else 'create_default_idxs')
+    return {name: enabled}
+
+
 def pixeltable_create_table(
     path: str,
     schema: Optional[Dict[str, Any]] = None,
@@ -218,7 +226,7 @@ def pixeltable_create_table(
                 schema_overrides=schema_overrides,
                 on_error=on_error,
                 primary_key=primary_key,
-                create_default_idxs=create_default_idxs,
+                **_index_kwargs(pxt.create_table, create_default_idxs),
                 comment=comment,
                 custom_metadata=custom_metadata,
                 media_validation=media_validation,
@@ -376,7 +384,7 @@ def pixeltable_create_view(
                 base=base_table,
                 additional_columns=additional_columns,
                 is_snapshot=is_snapshot,
-                create_default_idxs=create_default_idxs,
+                **_index_kwargs(pxt.create_view, create_default_idxs),
                 iterator=iterator_call,
                 comment=comment,
                 custom_metadata=custom_metadata,
@@ -530,6 +538,9 @@ def pixeltable_query_table(table_path: str, limit: Optional[int] = None) -> Dict
         def _safe(v: Any) -> Any:
             if isinstance(v, (str, int, float, bool, type(None))):
                 return v
+            if isinstance(v, (dict, list, tuple)):
+                return ({str(k): _safe(value) for k, value in v.items()}
+                        if isinstance(v, dict) else [_safe(value) for value in v])
             return str(v)
 
         return {
@@ -612,6 +623,9 @@ def pixeltable_query(
         def _safe(v: Any) -> Any:
             if isinstance(v, (str, int, float, bool, type(None))):
                 return v
+            if isinstance(v, (dict, list, tuple)):
+                return ({str(k): _safe(value) for k, value in v.items()}
+                        if isinstance(v, dict) else [_safe(value) for value in v])
             return str(v)
 
         return {

@@ -210,9 +210,9 @@ def functions_resource() -> str:
     return resource_list_functions()
 
 @mcp.resource("pixeltable://tools")
-def tools_resource() -> str:
+async def tools_resource() -> str:
     """List all available MCP tools with descriptions."""
-    return resource_list_tools()
+    return await resource_list_tools()
 
 @mcp.resource("pixeltable://help")
 def help_resource() -> str:

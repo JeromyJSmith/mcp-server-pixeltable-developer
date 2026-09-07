@@ -85,10 +85,10 @@ def resource_list_functions() -> str:
     return _to_json(pixeltable_list_functions())
 
 
-def resource_list_tools() -> str:
+async def resource_list_tools() -> str:
     """List all available Pixeltable MCP tools with categories."""
     from mcp_server_pixeltable_stio.core.helpers import pixeltable_list_tools
-    return _to_json(pixeltable_list_tools())
+    return _to_json(await pixeltable_list_tools())
 
 
 def resource_get_help() -> str:

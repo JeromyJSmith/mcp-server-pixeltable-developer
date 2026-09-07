@@ -10,28 +10,22 @@ module imports cleanly.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 
-def list_all() -> None:
+async def list_all() -> None:
     """Print every primitive registered on the MCP server."""
     from mcp_server_pixeltable_stio.server import mcp
 
-    tool_manager = getattr(mcp, '_tool_manager', None)
-    resource_manager = getattr(mcp, '_resource_manager', None)
-    prompt_manager = getattr(mcp, '_prompt_manager', None)
-
-    if tool_manager is None:
-        raise RuntimeError("MCPServer tool manager unavailable (mcp._tool_manager missing).")
-
-    # Tools, grouped roughly by category for human reading.
-    tools = list(tool_manager.list_tools())
-    resources = list(resource_manager.list_resources()) if resource_manager else []
-    resource_templates = list(resource_manager.list_templates()) if resource_manager else []
-    prompts = list(prompt_manager.list_prompts()) if prompt_manager else []
+    # Public SDK discovery methods mirror the MCP protocol inventory.
+    tools = await mcp.list_tools()
+    resources = await mcp.list_resources()
+    resource_templates = await mcp.list_resource_templates()
+    prompts = await mcp.list_prompts()
 
     categories = {
         "Initialization": ["pixeltable_init"],
@@ -107,4 +101,4 @@ def list_all() -> None:
 
 
 if __name__ == "__main__":
-    list_all()
+    asyncio.run(list_all())

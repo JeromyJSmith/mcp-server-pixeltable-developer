@@ -377,23 +377,16 @@ def pixeltable_get_help() -> Dict[str, Any]:
     }
 
 
-def pixeltable_list_tools() -> Dict[str, Any]:
+async def pixeltable_list_tools() -> Dict[str, Any]:
     """List the MCP tools actually registered on the live MCP server.
 
-    Introspects ``server.mcp._tool_manager.list_tools()`` so the resource always
+    Awaits the public ``server.mcp.list_tools()`` API so the resource always
     matches what clients see (no risk of drift between this list and
     ``server.py`` / ``list_tools.py``).
     """
     try:
         # Deferred import: avoid circular load (server imports core/helpers).
         from mcp_server_pixeltable_stio.server import mcp as _mcp
-
-        tool_manager = getattr(_mcp, '_tool_manager', None)
-        if tool_manager is None or not hasattr(tool_manager, 'list_tools'):
-            return {
-                "success": False,
-                "error": "MCPServer tool manager unavailable; cannot enumerate live tools.",
-            }
 
         # Categories drive presentation; tools that don't match land in 'Other'.
         # Keywords are matched as exact name suffixes (after the pixeltable_ prefix
@@ -417,7 +410,7 @@ def pixeltable_list_tools() -> Dict[str, Any]:
         categorized["Other"] = []
         total_count = 0
 
-        for tool in tool_manager.list_tools():
+        for tool in await _mcp.list_tools():
             name = getattr(tool, 'name', None) or getattr(tool, 'fn', None).__name__
             description = (getattr(tool, 'description', None) or '').strip().split('\n', 1)[0]
             short_name = name[len('pixeltable_'):] if name.startswith('pixeltable_') else name

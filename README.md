@@ -253,3 +253,5 @@ Without those, the tool returns a clear error and core MCP traffic is unaffected
 - **Canvas error from `display_in_browser`:** install the `canvas` extra and set `PIXELTABLE_MCP_CANVAS=1` (see above)
 - Use `log_bug(...)` / `generate_bug_report()` for structured issue tracking
 - File issues at [github.com/pixeltable/mcp-server-pixeltable-developer](https://github.com/pixeltable/mcp-server-pixeltable-developer/issues)
+
+SDK compatibility: requires MCP Python SDK 2.x (`MCPServer`). Inventory uses the public async discovery APIs. Query cells preserve JSON objects and arrays; non-JSON leaves are represented as strings.
