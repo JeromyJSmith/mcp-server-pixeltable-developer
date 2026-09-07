@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Introspect the live FastMCP server and print its tools, resources, and prompts.
+"""Introspect the live MCP server and print its tools, resources, and prompts.
 
 This used to maintain a hand-written list that drifted from server.py. It now
 loads server.mcp directly so the inventory is always accurate.
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 
 def list_all() -> None:
-    """Print every primitive registered on the FastMCP server."""
+    """Print every primitive registered on the MCP server."""
     from mcp_server_pixeltable_stio.server import mcp
 
     tool_manager = getattr(mcp, '_tool_manager', None)
@@ -25,7 +25,7 @@ def list_all() -> None:
     prompt_manager = getattr(mcp, '_prompt_manager', None)
 
     if tool_manager is None:
-        raise RuntimeError("FastMCP tool manager unavailable (mcp._tool_manager missing).")
+        raise RuntimeError("MCPServer tool manager unavailable (mcp._tool_manager missing).")
 
     # Tools, grouped roughly by category for human reading.
     tools = list(tool_manager.list_tools())

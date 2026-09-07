@@ -378,7 +378,7 @@ def pixeltable_get_help() -> Dict[str, Any]:
 
 
 def pixeltable_list_tools() -> Dict[str, Any]:
-    """List the MCP tools actually registered on the live FastMCP server.
+    """List the MCP tools actually registered on the live MCP server.
 
     Introspects ``server.mcp._tool_manager.list_tools()`` so the resource always
     matches what clients see (no risk of drift between this list and
@@ -392,7 +392,7 @@ def pixeltable_list_tools() -> Dict[str, Any]:
         if tool_manager is None or not hasattr(tool_manager, 'list_tools'):
             return {
                 "success": False,
-                "error": "FastMCP tool manager unavailable; cannot enumerate live tools.",
+                "error": "MCPServer tool manager unavailable; cannot enumerate live tools.",
             }
 
         # Categories drive presentation; tools that don't match land in 'Other'.
