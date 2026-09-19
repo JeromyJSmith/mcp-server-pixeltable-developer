@@ -1,4 +1,8 @@
-"""End-to-end Pixeltable 0.7.6 application, service, and recovery tests."""
+"""End-to-end Pixeltable 0.7.8 application, service, and recovery tests.
+
+0.7.8's scaffold keys Docs by a generated `id` (uuid7, primary key, set on insert) instead of an
+inserted `doc_id`, so rows are inserted without a key and the generated one is read back.
+"""
 
 from __future__ import annotations
 
@@ -102,7 +106,7 @@ async def test_scaffold_schema_data_and_http_service_lifecycle(server_config: Se
                 "pixeltable_insert_rows",
                 {
                     "path": "trial/docs",
-                    "rows": [{"doc_id": 1, "title": "hello", "body": None}],
+                    "rows": [{"title": "hello", "body": None}],
                 },
             )
             assert insertion["num_rows"] == 1
@@ -116,15 +120,11 @@ async def test_scaffold_schema_data_and_http_service_lifecycle(server_config: Se
             uncounted = await _call(client, "pixeltable_list_catalog")
             assert uncounted["tree"]["entries"][0]["entries"][0]["rows"] is None
             rows = await _call(client, "pixeltable_rows", {"path": "trial/docs", "limit": 5})
-            assert rows["rows"] == [
-                {
-                    "doc_id": 1,
-                    "title": "hello",
-                    "body": None,
-                    "title_upper": "HELLO",
-                    "summary": "hello",
-                }
-            ]
+            assert len(rows["rows"]) == 1
+            row = dict(rows["rows"][0])
+            generated_id = str(row.pop("id"))
+            assert len(generated_id) == 36 and generated_id.count("-") == 4, "0.7.8 keys Docs by a generated uuid7"
+            assert row == {"title": "hello", "body": None, "title_upper": "HELLO", "summary": "hello"}
 
             service_check = await _call(client, "pixeltable_service_check", {"app_file": "app.py"})
             assert service_check["valid"] is True
@@ -153,8 +153,10 @@ async def test_scaffold_schema_data_and_http_service_lifecycle(server_config: Se
             response = await asyncio.to_thread(
                 _post_json,
                 f"{endpoint}/docs",
-                {"doc_id": 2, "title": "served", "body": "body"},
+                {"title": "served", "body": "body"},
             )
+            # 0.7.8's insert route returns the generated key along with the computed columns.
+            assert len(str(response.pop("id"))) == 36
             assert response == {"title_upper": "SERVED", "summary": "served"}
 
             await _call(

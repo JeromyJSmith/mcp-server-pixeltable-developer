@@ -41,14 +41,14 @@ def test_release_metadata_and_lock_are_pinned_to_reviewed_lines() -> None:
     assert project["version"] == "0.2.0"
     assert project["requires-python"] == ">=3.11"
     assert "mcp>=2.2,<3" in project["dependencies"]
-    assert "pixeltable[serve]>=0.7.6,<0.8" in project["dependencies"]
+    assert "pixeltable[serve]>=0.7.8,<0.8" in project["dependencies"]
     assert all(not dependency.startswith(("requests", "toml", "uvloop")) for dependency in project["dependencies"])
     assert project["scripts"]["mcp-server-pixeltable-developer"] == ("mcp_server_pixeltable_developer.__main__:main")
 
     lock = (ROOT / "uv.lock").read_text()
     assert 'name = "mcp"\nversion = "2.2.0"' in lock
-    assert 'name = "pixeltable"\nversion = "0.7.6"' in lock
-    assert "9e6cdbe54f042b31786bede4a4cd4d68b361b31d75f34ea4e9c415146c901114" in lock
+    assert 'name = "pixeltable"\nversion = "0.7.8"' in lock
+    assert "4b6a4faf1e634a22e842da15802f768e9117dd1904a8b896b06f750232af4435" in lock  # pixeltable-0.7.8 wheel
 
 
 def test_public_examples_do_not_use_retired_workflows() -> None:
@@ -126,15 +126,16 @@ def test_mcpb_manifest_matches_the_served_tool_contract() -> None:
     metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
 
     assert manifest["version"] == metadata["project"]["version"]
-    assert manifest["server"]["type"] == "uv"
+    # Upstream 074a0ac: MCPB runtime type is "python" (Smithery/Anthropic compatibility); launch stays `uv run`.
+    assert manifest["server"]["type"] == "python"
+    assert manifest["server"]["mcp_config"]["command"] == "uv"
     # A missing or incomplete privacy policy is an automatic directory rejection.
     assert manifest["privacy_policies"], "the directory requires at least one privacy policy URL"
     assert all(url.startswith("https://") for url in manifest["privacy_policies"])
     assert "## Privacy Policy" in (ROOT / "README.md").read_text()
 
-    manifest_tools = {tool["name"]: tool for tool in manifest["tools"]}
-    assert manifest_tools.keys() == set(DEFAULT_TOOL_NAMES)
-    assert all(tool.get("description") for tool in manifest_tools.values())
-    # The MCPB schema has no per-tool title field; the served tools carry titles instead,
-    # which test_every_tool_declares_a_title_and_a_behavior_hint asserts.
-    assert all("title" not in tool for tool in manifest_tools.values())
+    # Upstream 074a0ac omits the unschematized `tools` array (Smithery / Anthropic MCPB validators reject
+    # it); the served contract is the source of truth: test_every_tool_declares_a_title_and_a_behavior_hint
+    # and the list_tools checks in test_contract.py cover every DEFAULT_TOOL_NAMES entry.
+    assert "tools" not in manifest
+    assert DEFAULT_TOOL_NAMES
