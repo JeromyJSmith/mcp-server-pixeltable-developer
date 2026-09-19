@@ -1,0 +1,66 @@
+{
+  "manifest_version": "0.4",
+  "name": "mcp-server-pixeltable-developer",
+  "display_name": "Pixeltable Developer",
+  "version": "0.2.0",
+  "description": "Build, inspect, and operate Pixeltable applications from Claude.",
+  "author": {
+    "name": "Pixeltable",
+    "url": "https://pixeltable.com/"
+  },
+  "homepage": "https://github.com/pixeltable/mcp-server-pixeltable-developer",
+  "documentation": "https://github.com/pixeltable/mcp-server-pixeltable-developer#readme",
+  "support": "https://github.com/pixeltable/mcp-server-pixeltable-developer/issues",
+  "license": "Apache-2.0",
+  "keywords": [
+    "pixeltable",
+    "multimodal",
+    "data",
+    "ai"
+  ],
+  "server": {
+    "type": "python",
+    "entry_point": "src/mcp_server_pixeltable_developer/__main__.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "mcp-server-pixeltable-developer"
+      ],
+      "env": {
+        "PIXELTABLE_MCP_PROJECT_ROOT": "${user_config.project_root}",
+        "PIXELTABLE_HOME": "${user_config.pixeltable_home}",
+        "PIXELTABLE_DISABLE_STDOUT": "1"
+      }
+    }
+  },
+  "user_config": {
+    "project_root": {
+      "type": "directory",
+      "title": "Application directory",
+      "description": "Directory holding your Pixeltable app.py. Fixed for the life of the server process.",
+      "required": true
+    },
+    "pixeltable_home": {
+      "type": "directory",
+      "title": "Pixeltable catalog",
+      "description": "Catalog the server may read and mutate. Use a disposable catalog for evaluation.",
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "python": ">=3.11"
+    }
+  },
+  "privacy_policies": [
+    "https://github.com/pixeltable/mcp-server-pixeltable-developer#privacy-policy"
+  ]
+}

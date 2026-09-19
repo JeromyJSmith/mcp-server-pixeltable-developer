@@ -125,6 +125,21 @@ def _service_info(payload: Any) -> ServiceInfo:
     return _model(ServiceInfo, normalized, operation="service listing")
 
 
+NO_PRIMARY_KEY_MARKER = "no primary key defined"
+
+# `pxt service example` scaffolds a model without a primary key, so the first call an agent makes to a
+# row-addressed tool fails with a bare 422. Explain the requirement and the way out instead.
+PRIMARY_KEY_REMEDY = (
+    "Declare one in the model as an assignment, for example "
+    "`doc_id = pxt.Column(type=pxt.Int, primary_key=True)`, and apply that schema to a new table. "
+    "Pixeltable cannot add a primary key to a table that already exists."
+)
+
+
+def _primary_key_error(table_path: str, alternative: str) -> ToolError:
+    return ToolError(f"{table_path} has no primary key. {PRIMARY_KEY_REMEDY} {alternative}")
+
+
 DIRECTORY_KINDS = frozenset({"directory", "dir"})
 
 
@@ -170,6 +185,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_list_catalog",
+        title="List catalog",
         description="List tables, views, and directories in the local Pixeltable catalog.",
         annotations=READ_ONLY_LOCAL,
         structured_output=True,
@@ -214,6 +230,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_describe",
+        title="Describe table",
         description="Return schema, computed-column, index, and version metadata for a local table or view.",
         annotations=READ_ONLY_LOCAL,
         structured_output=True,
@@ -227,6 +244,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_rows",
+        title="Preview rows",
         description="Preview up to 100 rows without evaluating unstored computed columns unless explicitly requested.",
         annotations=READ_ONLY_LOCAL,
         structured_output=True,
@@ -252,7 +270,11 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_get_row",
-        description="Look up one local table row using primary-key values in declared key order.",
+        title="Get row by primary key",
+        description=(
+            "Look up one local table row using primary-key values in declared key order. "
+            "The table must declare a primary key; pixeltable_describe reports whether it does."
+        ),
         annotations=READ_ONLY_LOCAL,
         structured_output=True,
     )
@@ -270,16 +292,32 @@ def register_default_tools(
         if selected_columns:
             arguments.extend(["--cols", ",".join(selected_columns)])
         arguments.extend(["--", table_path, *primary_key])
-        result = await runner.pxt(arguments)
+        try:
+            result = await runner.pxt(arguments)
+        except ToolError as exc:
+            if NO_PRIMARY_KEY_MARKER in str(exc):
+                raise _primary_key_error(
+                    table_path, "Use pixeltable_rows to read rows from a table without one."
+                ) from exc
+            raise
         payload = _dict(result, operation="primary-key lookup")
-        row = payload.get("row")
+        if "row" not in payload:
+            raise ToolError("Pixeltable returned an unexpected primary-key lookup")
+        row = payload["row"]
+        if row is None:
+            # `pxt get` reports a miss as a successful call carrying a null row.
+            raise ToolError(f"No row in {table_path} has primary key {list(primary_key)}")
         if not isinstance(row, dict):
             raise ToolError("Pixeltable returned an unexpected primary-key lookup")
         return RowResult(path=table_path, row=row)
 
     @server.tool(
         name="pixeltable_errors",
-        description="List failed computed-column values for a local table that has a primary key.",
+        title="List computed-column errors",
+        description=(
+            "List failed computed-column values for a local table that has a primary key. "
+            "The table must declare one; pixeltable_describe reports whether it does."
+        ),
         annotations=READ_ONLY_LOCAL,
         structured_output=True,
     )
@@ -292,7 +330,15 @@ def register_default_tools(
         if column is not None:
             column = config.validate_identifier(column, label="column name")
             arguments.extend(["--col", column])
-        result = await runner.pxt(arguments)
+        try:
+            result = await runner.pxt(arguments)
+        except ToolError as exc:
+            if NO_PRIMARY_KEY_MARKER in str(exc):
+                raise _primary_key_error(
+                    table_path,
+                    "Failed values cannot be listed per row without one; pixeltable_rows still shows stored columns.",
+                ) from exc
+            raise
         raw_errors = _list(result, operation="computed-column errors")
         if any(not isinstance(error, dict) for error in raw_errors):
             raise ToolError("Pixeltable returned an unexpected error listing")
@@ -300,6 +346,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_insert_rows",
+        title="Insert rows",
         description="Insert 1 to 1,000 JSON rows into a local table and run its stored computed columns.",
         annotations=INSERT_ACTION,
         structured_output=True,
@@ -321,6 +368,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_recompute",
+        title="Recompute columns",
         description="Preview or run computed-column recovery. Defaults to failed rows only and a dry run.",
         annotations=RECOMPUTE_ACTION,
         structured_output=True,
@@ -362,6 +410,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_scaffold_app",
+        title="Scaffold application",
         description="Initialize the project and write one Pixeltable 0.7 application or brief schema example.",
         annotations=SCAFFOLD_ACTION,
         structured_output=True,
@@ -392,6 +441,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_schema_check",
+        title="Check schema file",
         description="Validate a TableModel schema file without reading or changing a catalog.",
         annotations=READ_ONLY_LOCAL,
         structured_output=True,
@@ -412,6 +462,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_schema_diff",
+        title="Diff schema",
         description="Read the migration plan between a TableModel schema file and a local or hosted target.",
         annotations=READ_ONLY_REMOTE,
         structured_output=True,
@@ -431,6 +482,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_schema_update",
+        title="Update schema",
         description="Reconcile a TableModel schema against a target. Destructive plans require explicit permission.",
         annotations=RECONCILE_ACTION,
         structured_output=True,
@@ -463,6 +515,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_schema_prune",
+        title="Prune schema",
         description="Preview or remove target tables that are absent from the TableModel schema.",
         annotations=DESTRUCTIVE_ACTION,
         structured_output=True,
@@ -487,6 +540,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_service_check",
+        title="Check service file",
         description="Validate a FastAPIRouter application without changing a catalog or starting a service.",
         annotations=READ_ONLY_LOCAL,
         structured_output=True,
@@ -507,6 +561,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_service_diff",
+        title="Diff service",
         description="Compare declared FastAPI services with a local or hosted target without changing either.",
         annotations=READ_ONLY_REMOTE,
         structured_output=True,
@@ -537,6 +592,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_service_update",
+        title="Update service",
         description="Start or reconcile declared services against a local or hosted target.",
         annotations=RECONCILE_ACTION,
         structured_output=True,
@@ -581,6 +637,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_service_list",
+        title="List services",
         description="List services known locally or for one explicit local/hosted target.",
         annotations=READ_ONLY_REMOTE,
         structured_output=True,
@@ -602,6 +659,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_service_stop",
+        title="Stop services",
         description="Stop one or more named services without removing their configuration.",
         annotations=DESTRUCTIVE_ACTION,
         structured_output=True,
@@ -618,6 +676,7 @@ def register_default_tools(
 
     @server.tool(
         name="pixeltable_service_prune",
+        title="Prune services",
         description="Preview or remove running services absent from the application file.",
         annotations=DESTRUCTIVE_ACTION,
         structured_output=True,
