@@ -41,14 +41,14 @@ def test_release_metadata_and_lock_are_pinned_to_reviewed_lines() -> None:
     assert project["version"] == "0.2.0"
     assert project["requires-python"] == ">=3.11"
     assert "mcp>=2.2,<3" in project["dependencies"]
-    assert "pixeltable[serve]>=0.7.8,<0.8" in project["dependencies"]
+    assert "pixeltable[serve]>=0.7.6,<0.8" in project["dependencies"]
     assert all(not dependency.startswith(("requests", "toml", "uvloop")) for dependency in project["dependencies"])
     assert project["scripts"]["mcp-server-pixeltable-developer"] == ("mcp_server_pixeltable_developer.__main__:main")
 
     lock = (ROOT / "uv.lock").read_text()
     assert 'name = "mcp"\nversion = "2.2.0"' in lock
-    assert 'name = "pixeltable"\nversion = "0.7.8"' in lock
-    assert "4b6a4faf1e634a22e842da15802f768e9117dd1904a8b896b06f750232af4435" in lock  # pixeltable-0.7.8 wheel
+    assert 'name = "pixeltable"\nversion = "0.7.6"' in lock
+    assert "9e6cdbe54f042b31786bede4a4cd4d68b361b31d75f34ea4e9c415146c901114" in lock
 
 
 def test_public_examples_do_not_use_retired_workflows() -> None:
@@ -120,22 +120,36 @@ def test_evidence_report_is_reproducible_and_explicit_about_boundaries() -> None
         assert value in report
 
 
-def test_mcpb_manifest_matches_the_served_tool_contract() -> None:
-    """The bundle listing is submitted for review, so it must not drift from the server."""
-    manifest = json.loads((ROOT / "mcpb" / "manifest.json").read_text())
+def test_packaging_metadata_agrees_with_pyproject_and_the_served_contract() -> None:
+    """The bundle manifest, registry entry, and Smithery config are submitted for review, so they must not drift."""
     metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    version = metadata["project"]["version"]
 
-    assert manifest["version"] == metadata["project"]["version"]
-    # Upstream 074a0ac: MCPB runtime type is "python" (Smithery/Anthropic compatibility); launch stays `uv run`.
-    assert manifest["server"]["type"] == "python"
+    manifest = json.loads((ROOT / "mcpb" / "manifest.json").read_text())
+    assert manifest["version"] == version
+    # uv is the MCPB runtime for Python servers: the host manages the interpreter and installs deps.
+    assert manifest["server"]["type"] == "uv"
     assert manifest["server"]["mcp_config"]["command"] == "uv"
     # A missing or incomplete privacy policy is an automatic directory rejection.
     assert manifest["privacy_policies"], "the directory requires at least one privacy policy URL"
     assert all(url.startswith("https://") for url in manifest["privacy_policies"])
     assert "## Privacy Policy" in (ROOT / "README.md").read_text()
+    # Both env vars are required: without them the server aims at cwd and ~/.pixeltable.
+    assert all(manifest["user_config"][key]["required"] is True for key in ("project_root", "pixeltable_home"))
+    # The portal syncs tools from the running server; a static list only drifts. If one is ever added back,
+    # it must match the served contract.
+    if "tools" in manifest:
+        assert {tool["name"] for tool in manifest["tools"]} == set(DEFAULT_TOOL_NAMES)
 
-    # Upstream 074a0ac omits the unschematized `tools` array (Smithery / Anthropic MCPB validators reject
-    # it); the served contract is the source of truth: test_every_tool_declares_a_title_and_a_behavior_hint
-    # and the list_tools checks in test_contract.py cover every DEFAULT_TOOL_NAMES entry.
-    assert "tools" not in manifest
-    assert DEFAULT_TOOL_NAMES
+    registry = json.loads((ROOT / "server.json").read_text())
+    assert registry["version"] == version
+    package = registry["packages"][0]
+    assert package["version"] == version
+    assert package["identifier"] == metadata["project"]["name"]
+    assert {var["name"]: var["isRequired"] for var in package["environmentVariables"]} == {
+        "PIXELTABLE_MCP_PROJECT_ROOT": True,
+        "PIXELTABLE_HOME": True,
+    }
+
+    smithery = (ROOT / "smithery.yaml").read_text()
+    assert "required: [projectRoot, pixeltableHome]" in smithery

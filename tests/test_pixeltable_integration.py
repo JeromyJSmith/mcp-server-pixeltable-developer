@@ -1,8 +1,4 @@
-"""End-to-end Pixeltable 0.7.8 application, service, and recovery tests.
-
-0.7.8's scaffold keys Docs by a generated `id` (uuid7, primary key, set on insert) instead of an
-inserted `doc_id`, so rows are inserted without a key and the generated one is read back.
-"""
+"""End-to-end Pixeltable 0.7.6 application, service, and recovery tests."""
 
 from __future__ import annotations
 
@@ -67,6 +63,27 @@ def _stop_service(config: ServerConfig, name: str) -> None:
     )
 
 
+def _scaffold_input_columns(description: dict[str, Any]) -> set[str]:
+    """Stored, caller-supplied columns of the scaffolded table: not computed, not the primary key."""
+    return {
+        name
+        for name, column in description["columns"].items()
+        if not column.get("is_computed") and not column.get("is_primary_key")
+    }
+
+
+def _scaffold_row(input_columns: set[str], **values: Any) -> dict[str, Any]:
+    """Keep only the values the scaffold accepts as input; a 0.7.8 scaffold has no `doc_id`."""
+    return {name: value for name, value in values.items() if name in input_columns}
+
+
+def _primary_key_columns(description: dict[str, Any]) -> list[str]:
+    value = description.get("primary_key")
+    if not value:
+        return []
+    return [value] if isinstance(value, str) else list(value)
+
+
 @pytest.mark.asyncio
 async def test_scaffold_schema_data_and_http_service_lifecycle(server_config: ServerConfig) -> None:
     service_started = False
@@ -101,12 +118,16 @@ async def test_scaffold_schema_data_and_http_service_lifecycle(server_config: Se
             assert description["has_default_idxs"] is False
             assert description["columns"]["title_upper"]["is_computed"] is True
 
+            # The scaffold's inputs changed across Pixeltable releases: 0.7.6 declares a stored `doc_id`
+            # the caller supplies; 0.7.8 replaced it with a uuid7 `id` computed on insert. Derive the row
+            # from the schema so one test holds at both bounds.
+            input_columns = _scaffold_input_columns(description)
             insertion = await _call(
                 client,
                 "pixeltable_insert_rows",
                 {
                     "path": "trial/docs",
-                    "rows": [{"title": "hello", "body": None}],
+                    "rows": [_scaffold_row(input_columns, doc_id=1, title="hello", body=None)],
                 },
             )
             assert insertion["num_rows"] == 1
@@ -121,10 +142,24 @@ async def test_scaffold_schema_data_and_http_service_lifecycle(server_config: Se
             assert uncounted["tree"]["entries"][0]["entries"][0]["rows"] is None
             rows = await _call(client, "pixeltable_rows", {"path": "trial/docs", "limit": 5})
             assert len(rows["rows"]) == 1
-            row = dict(rows["rows"][0])
-            generated_id = str(row.pop("id"))
-            assert len(generated_id) == 36 and generated_id.count("-") == 4, "0.7.8 keys Docs by a generated uuid7"
-            assert row == {"title": "hello", "body": None, "title_upper": "HELLO", "summary": "hello"}
+            stored = rows["rows"][0]
+            assert {key: stored[key] for key in ("title", "body", "title_upper", "summary")} == {
+                "title": "hello",
+                "body": None,
+                "title_upper": "HELLO",
+                "summary": "hello",
+            }
+            primary_key = _primary_key_columns(description)
+            if primary_key:
+                # 0.7.8+: the generated key must round-trip through the row lookup.
+                fetched = await _call(
+                    client,
+                    "pixeltable_get_row",
+                    {"path": "trial/docs", "primary_key": [str(stored[column]) for column in primary_key]},
+                )
+                assert fetched["row"]["title_upper"] == "HELLO"
+            else:
+                assert stored["doc_id"] == 1
 
             service_check = await _call(client, "pixeltable_service_check", {"app_file": "app.py"})
             assert service_check["valid"] is True
@@ -153,11 +188,11 @@ async def test_scaffold_schema_data_and_http_service_lifecycle(server_config: Se
             response = await asyncio.to_thread(
                 _post_json,
                 f"{endpoint}/docs",
-                {"title": "served", "body": "body"},
+                _scaffold_row(input_columns, doc_id=2, title="served", body="body"),
             )
-            # 0.7.8's insert route returns the generated key along with the computed columns.
-            assert len(str(response.pop("id"))) == 36
-            assert response == {"title_upper": "SERVED", "summary": "served"}
+            # Both releases return the computed columns; 0.7.8 also returns the generated key.
+            assert response["title_upper"] == "SERVED"
+            assert response["summary"] == "served"
 
             await _call(
                 client,
