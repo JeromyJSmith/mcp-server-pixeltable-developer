@@ -355,22 +355,20 @@ async def test_errors_only_recovery_and_schema_evolution(server_config: ServerCo
 
         changed_expression = original.replace("recovered = recover(value)", "recovered = pxtf.string.lower(value)")
         app_file.write_text(changed_expression)
-        unsupported = await _call(
+        changed = await _call(
             client,
             "pixeltable_schema_diff",
             {"schema_file": "app.py", "target": "recovery"},
         )
-        assert unsupported["details"]["summary"]["unsupported"] == 1
-        unsupported_update = await client.call_tool(
+        # Pixeltable 0.7.12 can alter a computed column's expression in place (existing values are not recomputed),
+        # where 0.7.8 reported it as unsupported.
+        assert changed["details"]["summary"]["update_additive"] == 1
+        assert changed["details"]["summary"]["unsupported"] == 0
+        await _call(
+            client,
             "pixeltable_schema_update",
-            {
-                "schema_file": "app.py",
-                "target": "recovery",
-                "allow_destructive": True,
-            },
+            {"schema_file": "app.py", "target": "recovery"},
         )
-        assert unsupported_update.is_error is True
-        assert "cannot be updated" in _first_text(unsupported_update).lower()
 
 
 MULTIMODAL_APP = """
