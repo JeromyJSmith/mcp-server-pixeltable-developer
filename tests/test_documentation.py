@@ -41,14 +41,14 @@ def test_release_metadata_and_lock_are_pinned_to_reviewed_lines() -> None:
     assert project["version"] == "0.2.0"
     assert project["requires-python"] == ">=3.11"
     assert "mcp>=2.2,<3" in project["dependencies"]
-    assert "pixeltable[serve]>=0.7.8,<0.8" in project["dependencies"]
+    assert "pixeltable[serve]>=0.7.12,<0.8" in project["dependencies"]
     assert all(not dependency.startswith(("requests", "toml", "uvloop")) for dependency in project["dependencies"])
     assert project["scripts"]["mcp-server-pixeltable-developer"] == ("mcp_server_pixeltable_developer.__main__:main")
 
     lock = (ROOT / "uv.lock").read_text()
     assert 'name = "mcp"\nversion = "2.2.0"' in lock
-    assert 'name = "pixeltable"\nversion = "0.7.8"' in lock
-    assert "4b6a4faf1e634a22e842da15802f768e9117dd1904a8b896b06f750232af4435" in lock
+    assert 'name = "pixeltable"\nversion = "0.7.12"' in lock
+    assert "a4edff55f3476825abc2ff1e43a8453d33c013463b5d580b26b70282071d7423" in lock
 
 
 def test_public_examples_do_not_use_retired_workflows() -> None:

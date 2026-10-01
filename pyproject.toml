@@ -26,7 +26,7 @@ classifiers = [
 dependencies = [
     "mcp>=2.2,<3",
     "packaging>=24",
-    "pixeltable[serve]>=0.7.8,<0.8",
+    "pixeltable[serve]>=0.7.12,<0.8",
     "pydantic>=2.11,<3",
 ]
 
@@ -94,3 +94,7 @@ pythonVersion = "3.11"
 typeCheckingMode = "basic"
 venvPath = "."
 venv = ".venv"
+
+[tool.uv]
+# Latest always, pre-releases included (Jero 2026-09-30).
+prerelease = "allow"
